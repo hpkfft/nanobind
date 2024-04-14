@@ -774,13 +774,8 @@ Annotate the data type with ``const`` to indicate a read-only array. Note that
 only the buffer protocol/NumPy interface considers ``const``-ness at the
 moment; data exchange with other array libraries will ignore this annotation.
 
-When the is unspecified (e.g., to accept arbitrary input arrays), the
-:cpp:class:`ro` annotation can instead be used to denote read-only access:
-
-.. cpp:class:: ro
-
-   Indicate read-only access (use only when no data type is specified.)
-
+When leaving the data type unspecified (to accept arbitrary input arrays),
+``const void`` can be used to denote read-only access.
 
 nanobind does not support non-standard types as documented in the section on
 :ref:`dtype limitations <dtype_restrictions>`.
