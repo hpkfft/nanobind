@@ -353,8 +353,10 @@ function(nanobind_add_module name)
   endif()
 
   if (NB_ABI MATCHES "t")
+    # Free-threaded builds don't support the stable ABI.
     set(ARG_STABLE_ABI FALSE)
-  else(ARG_STABLE_ABI)
+  else()
+    # A free-threaded Python interpreter is required for free-threaded builds.
     set(ARG_FREE_THREADED FALSE)
   endif()
 
