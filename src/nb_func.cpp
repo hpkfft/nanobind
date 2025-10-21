@@ -47,7 +47,7 @@ int nb_func_traverse(PyObject *self, visitproc visit, void *arg) {
         func_data *f = nb_func_data(self);
 
         for (size_t i = 0; i < size; ++i) {
-            if (f->flags & (uint32_t) func_flags::has_args) {
+            if (f->flags >= func_flags::has_args) {
                 for (size_t j = 0; j < f->nargs; ++j) {
                     Py_VISIT(f->args[j].value);
                 }
@@ -66,7 +66,7 @@ int nb_func_clear(PyObject *self) {
         func_data *f = nb_func_data(self);
 
         for (size_t i = 0; i < size; ++i) {
-            if (f->flags & (uint32_t) func_flags::has_args) {
+            if (f->flags >= func_flags::has_args) {
                 for (size_t j = 0; j < f->nargs; ++j) {
                     Py_CLEAR(f->args[j].value);
                 }
@@ -91,15 +91,14 @@ void nb_func_dealloc(PyObject *self) {
         size_t n_deleted = internals->funcs.erase(self);
         check(n_deleted == 1,
               "nanobind::detail::nb_func_dealloc(\"%s\"): function not found!",
-              ((f->flags & (uint32_t) func_flags::has_name) ? f->name
-                                                        : "<anonymous>"));
+              ((f->flags >= func_flags::has_name) ? f->name : "<anonymous>"));
 #endif
 
         for (size_t i = 0; i < size; ++i) {
-            if (f->flags & (uint32_t) func_flags::has_free)
+            if (f->flags >= func_flags::has_free)
                 f->free_capture(f->capture);
 
-            if (f->flags & (uint32_t) func_flags::has_args) {
+            if (f->flags >= func_flags::has_args) {
                 for (size_t j = 0; j < f->nargs; ++j) {
                     const arg_data &arg = f->args[j];
                     Py_XDECREF(arg.value);
@@ -108,7 +107,7 @@ void nb_func_dealloc(PyObject *self) {
                 }
             }
 
-            if (f->flags & (uint32_t) func_flags::has_doc)
+            if (f->flags >= func_flags::has_doc)
                 free((char *) f->doc);
 
             free((char *) f->name);
@@ -198,17 +197,17 @@ char *strdup_check(const char *s) {
  * This is an implementation detail of nanobind::cpp_function.
  */
 PyObject *nb_func_new(const func_data_prelim_base *f) noexcept {
-    bool has_scope       = f->flags & (uint32_t) func_flags::has_scope,
-         has_name        = f->flags & (uint32_t) func_flags::has_name,
-         has_args        = f->flags & (uint32_t) func_flags::has_args,
-         has_var_args    = f->flags & (uint32_t) func_flags::has_var_args,
-         has_var_kwargs  = f->flags & (uint32_t) func_flags::has_var_kwargs,
-         can_mutate_args = f->flags & (uint32_t) func_flags::can_mutate_args,
-         has_doc         = f->flags & (uint32_t) func_flags::has_doc,
-         has_signature   = f->flags & (uint32_t) func_flags::has_signature,
-         is_implicit     = f->flags & (uint32_t) func_flags::is_implicit,
-         is_method       = f->flags & (uint32_t) func_flags::is_method,
-         return_ref      = f->flags & (uint32_t) func_flags::return_ref,
+    bool has_scope       = f->flags >= func_flags::has_scope,
+         has_name        = f->flags >= func_flags::has_name,
+         has_args        = f->flags >= func_flags::has_args,
+         has_var_args    = f->flags >= func_flags::has_var_args,
+         has_var_kwargs  = f->flags >= func_flags::has_var_kwargs,
+         can_mutate_args = f->flags >= func_flags::can_mutate_args,
+         has_doc         = f->flags >= func_flags::has_doc,
+         has_signature   = f->flags >= func_flags::has_signature,
+         is_implicit     = f->flags >= func_flags::is_implicit,
+         is_method       = f->flags >= func_flags::is_method,
+         return_ref      = f->flags >= func_flags::return_ref,
          is_constructor  = false,
          is_init         = false,
          is_new          = false,
@@ -241,8 +240,8 @@ PyObject *nb_func_new(const func_data_prelim_base *f) noexcept {
                 Py_TYPE(func_prev) == internals_->nb_method) {
                 func_data *fp = nb_func_data(func_prev);
 
-                check((fp->flags & (uint32_t) func_flags::is_method) ==
-                          (f->flags & (uint32_t) func_flags::is_method),
+                check((fp->flags >= func_flags::is_method) ==
+                          (f->flags >= func_flags::is_method),
                       "nb::detail::nb_func_new(\"%s\"): mismatched static/"
                       "instance method flags in function overloads!",
                       name_cstr);
@@ -369,7 +368,7 @@ PyObject *nb_func_new(const func_data_prelim_base *f) noexcept {
             fc->doc++;
         if (fc->doc[0] == '\0') {
             fc->doc = nullptr;
-            fc->flags &= ~(uint32_t) func_flags::has_doc;
+            fc->flags &= ~func_flags::has_doc;
             has_doc = false;
         } else {
             fc->doc = strdup_check(fc->doc);
@@ -381,16 +380,14 @@ PyObject *nb_func_new(const func_data_prelim_base *f) noexcept {
         (has_doc && ((prev_overloads == 0) ||
                      (prev_doc && strcmp(fc->doc, prev_doc) == 0)));
 
-    if (is_constructor)
-        fc->flags |= (uint32_t) func_flags::is_constructor;
-    if (has_args)
-        fc->flags |= (uint32_t) func_flags::has_args;
+    fc->flags |= conditional(is_constructor, func_flags::is_constructor) |
+                 conditional(has_args      , func_flags::has_args);
 
     fc->name = name_cstr;
     fc->signature = has_signature ? strdup_check(f->name) : nullptr;
 
     if (is_implicit) {
-        check(fc->flags & (uint32_t) func_flags::is_constructor,
+        check(fc->flags >= func_flags::is_constructor,
               "nb::detail::nb_func_new(\"%s\"): nanobind::is_implicit() "
               "should only be specified for constructors.",
               name_cstr);
@@ -503,7 +500,7 @@ nb_func_error_overload(PyObject *self, PyObject *const *args_in,
     uint32_t count = (uint32_t) Py_SIZE(self);
     func_data *f = nb_func_data(self);
 
-    if (f->flags & (uint32_t) func_flags::is_operator)
+    if (f->flags >= func_flags::is_operator)
         return not_implemented().release().ptr();
 
     // The buffer 'buf' is protected by 'internals.mutex'
@@ -611,8 +608,8 @@ static PyObject *nb_func_vectorcall_complex(PyObject *self,
 
     func_data *fr = nb_func_data(self);
 
-    const bool is_method      = fr->flags & (uint32_t) func_flags::is_method,
-               is_constructor = fr->flags & (uint32_t) func_flags::is_constructor;
+    const bool is_method      = fr->flags >= func_flags::is_method,
+               is_constructor = fr->flags >= func_flags::is_constructor;
 
     PyObject *result = nullptr,
              *self_arg = (is_method && nargs_in > 0) ? args_in[0] : nullptr;
@@ -709,9 +706,9 @@ static PyObject *nb_func_vectorcall_complex(PyObject *self,
         for (size_t k = 0; k < count; ++k) {
             const func_data *f = fr + k;
 
-            const bool has_args       = f->flags & (uint32_t) func_flags::has_args,
-                       has_var_args   = f->flags & (uint32_t) func_flags::has_var_args,
-                       has_var_kwargs = f->flags & (uint32_t) func_flags::has_var_kwargs;
+            const bool has_args       = f->flags >= func_flags::has_args,
+                       has_var_args   = f->flags >= func_flags::has_var_args,
+                       has_var_kwargs = f->flags >= func_flags::has_var_kwargs;
 
             // Number of C++ parameters eligible to be filled from individual
             // Python positional arguments
@@ -831,7 +828,7 @@ static PyObject *nb_func_vectorcall_complex(PyObject *self,
             if (is_constructor)
                 args_flags[0] |= (uint8_t) cast_flags::construct;
 
-            rv_policy policy = (rv_policy) (f->flags & 0b111);
+            rv_policy policy = (rv_policy) (f->flags & func_flags::rv_policy);
 
             try {
                 result = nullptr;
@@ -887,11 +884,11 @@ static PyObject *nb_func_vectorcall_simple(PyObject *self,
     uint8_t args_flags[NB_MAXARGS_SIMPLE];
     func_data *fr = nb_func_data(self);
 
-    const size_t count         = (size_t) Py_SIZE(self),
-                 nargs_in      = (size_t) NB_VECTORCALL_NARGS(nargsf);
+    const size_t count        = (size_t) Py_SIZE(self),
+                 nargs_in     = (size_t) NB_VECTORCALL_NARGS(nargsf);
 
-    const bool is_method      = fr->flags & (uint32_t) func_flags::is_method,
-               is_constructor = fr->flags & (uint32_t) func_flags::is_constructor;
+    const bool is_method      = fr->flags >= func_flags::is_method,
+               is_constructor = fr->flags >= func_flags::is_constructor;
 
     PyObject *result = nullptr,
              *self_arg = (is_method && nargs_in > 0) ? args_in[0] : nullptr;
@@ -931,7 +928,8 @@ static PyObject *nb_func_vectorcall_simple(PyObject *self,
 
                 // Found a suitable overload, let's try calling it
                 result = f->impl((void *) f->capture, (PyObject **) args_in,
-                                 args_flags, (rv_policy) (f->flags & 0b111),
+                                 args_flags,
+                                 (rv_policy) (f->flags & func_flags::rv_policy),
                                  &cleanup);
 
                 if (NB_UNLIKELY(!result))
@@ -989,7 +987,9 @@ static PyObject *nb_func_vectorcall_simple_0(PyObject *self,
     if (kwargs_in == nullptr && nargs_in == 0) {
         try {
             result = fr->impl((void *) fr->capture, (PyObject **) args_in,
-                              nullptr, (rv_policy) (fr->flags & 0b111), nullptr);
+                              nullptr,
+                              (rv_policy) (fr->flags & func_flags::rv_policy),
+                              nullptr);
             if (result == NB_NEXT_OVERLOAD)
                 error_handler = nb_func_error_overload;
             else if (!result)
@@ -1019,7 +1019,7 @@ static PyObject *nb_func_vectorcall_simple_1(PyObject *self,
                                              PyObject *kwargs_in) noexcept {
     func_data *fr = nb_func_data(self);
     const size_t nargs_in = (size_t) NB_VECTORCALL_NARGS(nargsf);
-    bool is_constructor = fr->flags & (uint32_t) func_flags::is_constructor;
+    bool is_constructor = fr->flags >= func_flags::is_constructor;
 
     // Handler routine that will be invoked in case of an error condition
     PyObject *(*error_handler)(PyObject *, PyObject *const *, size_t,
@@ -1036,7 +1036,9 @@ static PyObject *nb_func_vectorcall_simple_1(PyObject *self,
 
         try {
             result = fr->impl((void *) fr->capture, (PyObject **) args_in,
-                              args_flags, (rv_policy) (fr->flags & 0b111), &cleanup);
+                              args_flags,
+                              (rv_policy) (fr->flags & func_flags::rv_policy),
+                              &cleanup);
             if (result == NB_NEXT_OVERLOAD) {
                 error_handler = nb_func_error_overload;
             } else if (!result) {
@@ -1136,11 +1138,11 @@ PyObject *nb_method_descr_get(PyObject *self, PyObject *inst, PyObject *) {
 /// 'internals' mutex.
 static uint32_t nb_func_render_signature(const func_data *f,
                                          bool nb_signature_mode) noexcept {
-    const bool is_method      = f->flags & (uint32_t) func_flags::is_method,
-               has_args       = f->flags & (uint32_t) func_flags::has_args,
-               has_var_args   = f->flags & (uint32_t) func_flags::has_var_args,
-               has_var_kwargs = f->flags & (uint32_t) func_flags::has_var_kwargs,
-               has_signature  = f->flags & (uint32_t) func_flags::has_signature;
+    const bool is_method      = f->flags >= func_flags::is_method,
+               has_args       = f->flags >= func_flags::has_args,
+               has_var_args   = f->flags >= func_flags::has_var_args,
+               has_var_kwargs = f->flags >= func_flags::has_var_kwargs,
+               has_signature  = f->flags >= func_flags::has_signature;
 
     nb_internals *internals_ = internals;
     if (has_signature) {
@@ -1353,15 +1355,14 @@ static uint32_t nb_func_render_signature(const func_data *f,
 static PyObject *nb_func_get_name(PyObject *self) {
     func_data *f = nb_func_data(self);
     const char *name = "";
-    if (f->flags & (uint32_t) func_flags::has_name)
+    if (f->flags >= func_flags::has_name)
         name = f->name;
     return PyUnicode_FromString(name);
 }
 
 static PyObject *nb_func_get_qualname(PyObject *self) {
     func_data *f = nb_func_data(self);
-    if ((f->flags & (uint32_t) func_flags::has_scope) &&
-        (f->flags & (uint32_t) func_flags::has_name)) {
+    if (f->flags >= (func_flags::has_scope | func_flags::has_name)) {
         PyObject *scope_name = PyObject_GetAttrString(f->scope, "__qualname__");
         if (scope_name) {
             return PyUnicode_FromFormat("%U.%s", scope_name, f->name);
@@ -1377,7 +1378,7 @@ static PyObject *nb_func_get_qualname(PyObject *self) {
 
 static PyObject *nb_func_get_module(PyObject *self) {
     func_data *f = nb_func_data(self);
-    if (f->flags & (uint32_t) func_flags::has_scope) {
+    if (f->flags >= func_flags::has_scope) {
         return PyObject_GetAttrString(
             f->scope, PyModule_Check(f->scope) ? "__name__" : "__module__");
     } else {
@@ -1400,7 +1401,7 @@ PyObject *nb_func_get_nb_signature(PyObject *self, void *) {
         docstr = item = sigstr = defaults = nullptr;
 
         const func_data *fi = f + i;
-        if ((fi->flags & (uint32_t) func_flags::has_doc) &&
+        if ((fi->flags >= func_flags::has_doc) &&
             (!((nb_func *) self)->doc_uniform || i == 0)) {
             docstr = PyUnicode_FromString(fi->doc);
         } else {
@@ -1480,7 +1481,7 @@ PyObject *nb_func_get_doc(PyObject *self, void *) {
         const func_data *fi = f + i;
         nb_func_render_signature(fi);
         buf.put('\n');
-        doc_found |= (fi->flags & (uint32_t) func_flags::has_doc) != 0;
+        doc_found |= fi->flags >= func_flags::has_doc;
     }
 
     if (doc_found) {
@@ -1499,7 +1500,7 @@ PyObject *nb_func_get_doc(PyObject *self, void *) {
                 nb_func_render_signature(fi);
                 buf.put("``\n\n");
 
-                if (fi->flags & (uint32_t) func_flags::has_doc) {
+                if (fi->flags >= func_flags::has_doc) {
                     buf.put_dstr(fi->doc);
                     buf.put('\n');
                 }

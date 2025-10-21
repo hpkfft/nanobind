@@ -887,7 +887,7 @@ static void property_install_impl(PyTypeObject *tp, PyObject *scope,
     if (m && (Py_TYPE(m) == internals->nb_func ||
               Py_TYPE(m) == internals->nb_method)) {
         func_data *f = nb_func_data(m);
-        if (f->flags & (uint32_t) func_flags::has_doc)
+        if (f->flags >= func_flags::has_doc)
             doc = str(f->doc);
     }
 

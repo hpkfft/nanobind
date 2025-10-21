@@ -160,7 +160,8 @@ NAMESPACE_END(literals)
 NAMESPACE_BEGIN(detail)
 
 enum class func_flags : uint32_t {
-    /* Low 3 bits reserved for return value policy */
+    /// Lowest 3 bits are reserved for return value policy.
+    rv_policy = 0b111,
 
     /// Did the user specify a name for this function, or is it anonymous?
     has_name = (1 << 4),
@@ -192,6 +193,40 @@ enum class func_flags : uint32_t {
     /// representing its arguments? (nb::keep_alive() or call_policy annotations)
     can_mutate_args = (1 << 17)
 };
+
+/// Contains/superset: true if the right-hand side bits are `in` the left.
+constexpr bool operator>=(func_flags lhs, func_flags rhs) {
+    uint32_t lhs_bits = (uint32_t) lhs;
+    uint32_t rhs_bits = (uint32_t) rhs;
+    return (lhs_bits & rhs_bits) == rhs_bits;
+}
+
+constexpr func_flags operator~(func_flags flags) {
+    return (func_flags) ~((uint32_t) flags);
+}
+
+constexpr func_flags operator|(func_flags lhs, func_flags rhs) {
+    return (func_flags) ((uint32_t) lhs | (uint32_t) rhs);
+}
+
+constexpr func_flags operator&(func_flags lhs, func_flags rhs) {
+    return (func_flags) ((uint32_t) lhs & (uint32_t) rhs);
+}
+
+constexpr func_flags& operator|=(func_flags& lhs, func_flags rhs) {
+    lhs = lhs | rhs;
+    return lhs;
+}
+
+constexpr func_flags& operator&=(func_flags& lhs, func_flags rhs) {
+    lhs = lhs & rhs;
+    return lhs;
+}
+
+constexpr func_flags conditional(bool condition, func_flags flags) {
+    uint32_t mask = -((int32_t) condition);
+    return (func_flags) (mask & (uint32_t)flags);
+}
 
 enum cast_flags : uint8_t {
     // Enable implicit conversions (code assumes this has value 1, don't reorder..)
@@ -237,7 +272,7 @@ struct func_data_prelim_base {
     const std::type_info **descr_types;
 
     /// Supplementary flags
-    uint32_t flags;
+    func_flags flags;
 
     /// Total number of parameters accepted by the C++ function; nb::args
     /// and nb::kwargs parameters are counted as one each. If the
@@ -271,30 +306,30 @@ template<> struct func_data_prelim<0> : func_data_prelim_base {};
 template <typename F>
 NB_INLINE void func_extra_apply(F &f, const name &name, size_t &) {
     f.name = name.value;
-    f.flags |= (uint32_t) func_flags::has_name;
+    f.flags |= func_flags::has_name;
 }
 
 template <typename F>
 NB_INLINE void func_extra_apply(F &f, const scope &scope, size_t &) {
     f.scope = scope.value;
-    f.flags |= (uint32_t) func_flags::has_scope;
+    f.flags |= func_flags::has_scope;
 }
 
 template <typename F>
 NB_INLINE void func_extra_apply(F &f, const sig &s, size_t &) {
-    f.flags |= (uint32_t) func_flags::has_signature;
+    f.flags |= func_flags::has_signature;
     f.name = s.value;
 }
 
 template <typename F>
 NB_INLINE void func_extra_apply(F &f, const char *doc, size_t &) {
     f.doc = doc;
-    f.flags |= (uint32_t) func_flags::has_doc;
+    f.flags |= func_flags::has_doc;
 }
 
 template <typename F>
 NB_INLINE void func_extra_apply(F &f, is_method, size_t &) {
-    f.flags |= (uint32_t) func_flags::is_method;
+    f.flags |= func_flags::is_method;
 }
 
 template <typename F>
@@ -302,17 +337,17 @@ NB_INLINE void func_extra_apply(F &, is_getter, size_t &) { }
 
 template <typename F>
 NB_INLINE void func_extra_apply(F &f, is_implicit, size_t &) {
-    f.flags |= (uint32_t) func_flags::is_implicit;
+    f.flags |= func_flags::is_implicit;
 }
 
 template <typename F>
 NB_INLINE void func_extra_apply(F &f, is_operator, size_t &) {
-    f.flags |= (uint32_t) func_flags::is_operator;
+    f.flags |= func_flags::is_operator;
 }
 
 template <typename F>
 NB_INLINE void func_extra_apply(F &f, rv_policy pol, size_t &) {
-    f.flags = (f.flags & ~0b111) | (uint16_t) pol;
+    f.flags = (f.flags & ~func_flags::rv_policy) | (func_flags) pol;
 }
 
 template <typename F>
@@ -360,12 +395,12 @@ NB_INLINE void func_extra_apply(F &, call_guard<Ts...>, size_t &) {}
 
 template <typename F, size_t Nurse, size_t Patient>
 NB_INLINE void func_extra_apply(F &f, nanobind::keep_alive<Nurse, Patient>, size_t &) {
-    f.flags |= (uint32_t) func_flags::can_mutate_args;
+    f.flags |= func_flags::can_mutate_args;
 }
 
 template <typename F, typename Policy>
 NB_INLINE void func_extra_apply(F &f, call_policy<Policy>, size_t &) {
-    f.flags |= (uint32_t) func_flags::can_mutate_args;
+    f.flags |= func_flags::can_mutate_args;
 }
 
 template <typename... Ts> struct func_extra_info {
