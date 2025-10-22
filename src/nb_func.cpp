@@ -1440,8 +1440,7 @@ static PyObject *nb_func_get_qualname(PyObject *self) {
             return PyUnicode_FromString(f->name);
         }
     } else {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
 }
 
@@ -1451,8 +1450,7 @@ static PyObject *nb_func_get_module(PyObject *self) {
         return PyObject_GetAttrString(
             f->scope, PyModule_Check(f->scope) ? "__name__" : "__module__");
     } else {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
 }
 
