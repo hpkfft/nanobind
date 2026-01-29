@@ -312,18 +312,14 @@ class StubGen:
             self._output.write("    " * self.depth + line)
         self._output.write("\n")
 
-    def write_par(self, line: str) -> None:
-        """Append an indented paragraph"""
-        self._output.write(textwrap.indent(line, "    " * self.depth))
-
     def _replace_tail(self, num_chars: int, replacement: str) -> None:
         """Remove the last num_chars from output and append replacement."""
         self._output.seek(self._output.tell() - num_chars)
         self._output.truncate()
         self._output.write(replacement)
 
-    def put_docstr(self, docstr: str) -> None:
-        """Append an indented single or multi-line docstring"""
+    def format_docstr(self, docstr: str, depth: int) -> str:
+        """Format a single or multi-line docstring with given indentation"""
         docstr = textwrap.dedent(docstr).strip()
         raw_str = ""
         if "''" in docstr or "\\" in docstr:
@@ -333,7 +329,11 @@ class StubGen:
         if len(docstr) > 70 or "\n" in docstr:
             docstr = "\n" + docstr + "\n"
         docstr = f'{raw_str}"""{docstr}"""\n'
-        self.write_par(docstr)
+        return textwrap.indent(docstr, "    " * depth)
+
+    def put_docstr(self, docstr: str) -> None:
+        """Append an indented single or multi-line docstring"""
+        self.write(self.format_docstr(docstr, self.depth))
 
     def put_nb_overload(self, fn: NbFunction, sig: NbFunctionSignature, name: Optional[str] = None) -> None:
         """
@@ -1223,6 +1223,12 @@ class StubGen:
     def get(self) -> str:
         """Generate the final stub output"""
         s = ""
+
+        # Potentially add a module docstring
+        doc = getattr(self.module, '__doc__', None)
+        if self.include_docstrings and doc:
+            s += self.format_docstr(doc, 0) + "\n"
+
         last_party = None
 
         for module in sorted(self.imports, key=lambda i: str(self.check_party(i)) + i):
