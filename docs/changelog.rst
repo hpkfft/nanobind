@@ -15,8 +15,8 @@ case, both modules must use the same nanobind ABI version, or they will be
 isolated from each other. Releases that don't explicitly mention an ABI version
 below inherit that of the preceding release.
 
-Version TBD (not yet released)
-------------------------------
+Version 2.11.0 (Jan 29, 2026)
+-----------------------------
 
 - This release improves binding performance using CPython's *adaptive
   specializing interpreter* (`PEP 659 <https://peps.python.org/pep-0659/>`__).
@@ -39,18 +39,57 @@ Version TBD (not yet released)
   (``nb_func``, ``nb_method``, ``nb_meta``, etc.) immutable, which allows
   CPython to specialize generic ``LOAD_ATTR`` opcodes to faster type-specific
   versions (``LOAD_ATTR_METHOD`` for method calls, ``LOAD_ATTR_CLASS`` for
-  static attribute lookups).
+  static attribute lookups). (PR `#1257
+  <https://github.com/wjakob/nanobind/pull/1257>`__).
 
 - Added the :cpp:class:`nb::never_destruct <never_destruct>` class binding
-  annotation to inform nanobind that it should not bind the destructor.
+  annotation to inform nanobind that it should not bind the destructor. (PR
+  `#1251 <https://github.com/wjakob/nanobind/pull/1251>`__, commit `4ba51f
+  <https://github.com/wjakob/nanobind/commit/4ba51fcf795971c5d603d875ae4184bc0c9bd8e6>`__).
 
-- Treats std::optional's argument annotation `.none()` by default to
-  resolve overload with `None` without explicit custom argument annotation.
+- Argument annotations for ``std::optional<T>``-typed arguments now implicitly
+  have the :cpp:func:`.none() <arg::none>` annotation applied (i.e., no need to
+  additionally specify ``nb::arg("..").none()``). (PR `#1262
+  <https://github.com/wjakob/nanobind/pull/1262>`__, commit `425ca1
+  <https://github.com/wjakob/nanobind/commit/425ca1d10dfda60de122d681099500f6e9718985>`__).
+
+- Removed a redundant hash table type, reducing the size of libnanobind by
+  2.5KiB. (commit `4d53cd
+  <https://github.com/wjakob/nanobind/commit/4d53cd184a759129122d678466b7055aef3dfac6>`__).
+
+- Added Python 3.12-3.14 symbols to linker scripts. (commit `36d4a6
+  <https://github.com/wjakob/nanobind/commit/36d4a60bd1f9ecb4ac6c42489db29719c5b3d77a>`__).
+
+- Fixed a bug where ``call_guard`` could cause an extra copy of the return
+  value. (PR `#1249 <https://github.com/wjakob/nanobind/pull/1249>`__).
+
+- Don't link ``nb_ft.cpp`` in non-free-threaded builds to avoid linker warnings
+  about empty compilation units. (PR `#1271
+  <https://github.com/wjakob/nanobind/pull/1271>`__).
 
 - ABI version 18.
 
-- Fixed O(n^2) string concatenation performance issue in stub generation.
-  (PR `#1274 <https://github.com/wjakob/nanobind/pull/1274>`__).
+- **Eigen type caster improvements**:
+
+  - Fixed conversion of size-zero vectors to ``Eigen::Map``/``Eigen::Ref`` on
+    NumPy 2.4. (PR `#1268 <https://github.com/wjakob/nanobind/pull/1268>`__).
+
+  - Fixed move construction of dense Eigen arrays. (commit `cb90753
+    <https://github.com/wjakob/nanobind/commit/cb90753953b767d5c0ab877a3e4d8ae4ae63211f>`__).
+
+- **Stub generation improvements**:
+
+  - Fixed *O(n²)* string concatenation performance issue.
+    (PR `#1275 <https://github.com/wjakob/nanobind/pull/1275>`__).
+
+  - Fixed enumerations with entries named ``name`` or ``value``.
+    (issue `#1246 <https://github.com/wjakob/nanobind/issues/1246>`__).
+
+  - Stubgen now preserves module-level docstrings. (commit `88771b
+    <https://github.com/wjakob/nanobind/commit/8771be7cf3c8420ba5a8c8aaa807a1b81437a6a3>`__).
+
+  - Extended the skip list by two additional enum attributes.
+    (PR `#1255 <https://github.com/wjakob/nanobind/pull/1255>`__).
 
 Version 2.10.2 (Dec 10, 2025)
 ----------------------------
@@ -60,8 +99,6 @@ Version 2.10.2 (Dec 10, 2025)
 
 Version 2.10.1 (Dec 8, 2025)
 ----------------------------
-
-- ABI version 17.
 
 - Nanobind now officially supports the **MinGW-w64** and **Intel ICX**
   compilers. (PR `#1188 <https://github.com/wjakob/nanobind/pull/1188>`__).
@@ -112,6 +149,8 @@ Version 2.10.1 (Dec 8, 2025)
 - Fixed a data race related caused by writes to a bit-field in free-threaded
   extension builds (PR `#1191
   <https://github.com/wjakob/nanobind/pull/1191>`__)
+
+- ABI version 17.
 
 - **Stub generation improvements**:
 
