@@ -190,15 +190,15 @@ NB_INLINE PyObject *func_create(Func &&func, Return (*)(Args...),
     };
 
     // The following temporary record will describe the function in detail
-    func_data_prelim<has_arg_defaults ? nargs : nargs_provided> f;
+    func_data_prelim<has_arg_defaults ? (nargs - is_method_det) : nargs_provided> f;
 
     // Initialize argument flags. The first branch turns std::optional<> types
-    // into implicit nb::none() anotations.
+    // into implicit nb::none() annotations (skipping 'self' for methods).
     if constexpr (has_arg_defaults) {
-        size_t i = 0;
-        ((f.args[i++] = { nullptr, nullptr, nullptr, nullptr,
-            has_arg_defaults_v<Args> ? (uint8_t) cast_flags::accepts_none
-                                     : (uint8_t) 0 }), ...);
+        ((void)(Is < is_method_det ||
+                (f.args[Is - is_method_det] = { nullptr, nullptr, nullptr, nullptr,
+                    has_arg_defaults_v<Args> ? (uint8_t) cast_flags::accepts_none
+                                             : (uint8_t) 0 }, true)), ...);
     } else if constexpr (nargs_provided > 0) {
         for (size_t i = 0; i < nargs_provided; ++i)
             f.args[i].flag = 0;
