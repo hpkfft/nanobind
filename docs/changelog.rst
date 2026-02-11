@@ -92,7 +92,7 @@ Version 2.11.0 (Jan 29, 2026)
     (PR `#1255 <https://github.com/wjakob/nanobind/pull/1255>`__).
 
 Version 2.10.2 (Dec 10, 2025)
-----------------------------
+-----------------------------
 
 - Fixes a regression that broke compilation on 32-bit architectures.
   (PR `#1239 <https://github.com/wjakob/nanobind/pull/1239>`__).
@@ -564,7 +564,7 @@ Version 2.3.0
 
 There is no version 2.3.0 due to a deployment mishap.
 
-- Added casters for `Eigen::Map<Eigen::SparseMatrix<...>` types from the `Eigen library
+- Added casters for ``Eigen::Map<Eigen::SparseMatrix<...>>`` types from the `Eigen library
   <https://eigen.tuxfamily.org/index.php?title=Main_Page>`__. (PR `#782
   <https://github.com/wjakob/nanobind/pull/782>`_).
 
