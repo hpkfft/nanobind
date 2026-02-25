@@ -15,8 +15,8 @@ case, both modules must use the same nanobind ABI version, or they will be
 isolated from each other. Releases that don't explicitly mention an ABI version
 below inherit that of the preceding release.
 
-Version TBD (unreleased)
-------------------------
+Version 2.12.0 (Feb 25, 2025)
+-----------------------------
 
 - Added :cpp:class:`nb::memoryview` that wraps the Python ``memoryview`` type.
   (PR `#1291 <https://github.com/wjakob/nanobind/pull/1291>`__).
